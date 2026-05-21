@@ -599,8 +599,10 @@ SERVIDOR
 ========================================
 */
 
-const server = app.listen(3001, () => {
-  console.log("Servidor backend activo en puerto 3001");
+const PORT = process.env.PORT || 3001;
+
+const server = app.listen(PORT, () => {
+  console.log(`Servidor backend activo en puerto ${PORT}`);
 });
 
 /*
