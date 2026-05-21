@@ -2,6 +2,8 @@ import "./App.css";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+const API = import.meta.env.VITE_API_URL;
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [usuario, setUsuario] = useState(
@@ -29,7 +31,10 @@ function App() {
 
   const rutaActual = window.location.pathname;
   const esResetPassword = rutaActual.startsWith("/reset-password/");
-  const resetToken = esResetPassword ? rutaActual.split("/reset-password/")[1] : "";
+
+  const resetToken = esResetPassword
+    ? rutaActual.split("/reset-password/")[1]
+    : "";
 
   const authHeaders = {
     headers: {
@@ -37,29 +42,45 @@ function App() {
     },
   };
 
+  /*
+  ========================================
+  REGISTRO
+  ========================================
+  */
+
   const registrarse = async () => {
     try {
-      await axios.post("http://localhost:3001/registro", {
+      await axios.post(`${API}/registro`, {
         nombre,
         email,
         password,
       });
 
-      alert("Usuario registrado");
+      alert("Usuario registrado correctamente");
     } catch (error) {
       alert(error.response?.data?.error || "Error registrando usuario");
     }
   };
 
+  /*
+  ========================================
+  LOGIN
+  ========================================
+  */
+
   const iniciarSesion = async () => {
     try {
-      const respuesta = await axios.post("http://localhost:3001/login", {
+      const respuesta = await axios.post(`${API}/login`, {
         email,
         password,
       });
 
       localStorage.setItem("token", respuesta.data.token);
-      localStorage.setItem("usuario", JSON.stringify(respuesta.data.usuario));
+
+      localStorage.setItem(
+        "usuario",
+        JSON.stringify(respuesta.data.usuario)
+      );
 
       setToken(respuesta.data.token);
       setUsuario(respuesta.data.usuario);
@@ -68,19 +89,37 @@ function App() {
     }
   };
 
+  /*
+  ========================================
+  RECUPERAR PASSWORD
+  ========================================
+  */
+
   const solicitarRecuperacion = async () => {
     try {
-      await axios.post("http://localhost:3001/recuperar-password", {
+      await axios.post(`${API}/recuperar-password`, {
         email: emailRecuperacion,
       });
 
-      alert("Si el correo existe, recibirás un enlace de recuperación");
+      alert(
+        "Si el correo existe recibirás un enlace de recuperación"
+      );
+
       setModoRecuperar(false);
       setEmailRecuperacion("");
     } catch (error) {
-      alert(error.response?.data?.error || "Error enviando recuperación");
+      alert(
+        error.response?.data?.error ||
+          "Error enviando recuperación"
+      );
     }
   };
+
+  /*
+  ========================================
+  RESET PASSWORD
+  ========================================
+  */
 
   const actualizarPassword = async () => {
     if (!nuevaPassword || !confirmarPassword) {
@@ -94,7 +133,7 @@ function App() {
     }
 
     try {
-      await axios.post("http://localhost:3001/reset-password", {
+      await axios.post(`${API}/reset-password`, {
         token: resetToken,
         password: nuevaPassword,
       });
@@ -104,20 +143,36 @@ function App() {
       window.history.pushState({}, "", "/");
       window.location.reload();
     } catch (error) {
-      alert(error.response?.data?.error || "Error actualizando contraseña");
+      alert(
+        error.response?.data?.error ||
+          "Error actualizando contraseña"
+      );
     }
   };
 
+  /*
+  ========================================
+  CERRAR SESION
+  ========================================
+  */
+
   const cerrarSesion = () => {
     localStorage.clear();
+
     setToken("");
     setUsuario(null);
   };
 
+  /*
+  ========================================
+  OBTENER PROCESOS
+  ========================================
+  */
+
   const obtenerProcesos = async () => {
     try {
       const respuesta = await axios.get(
-        "http://localhost:3001/procesos",
+        `${API}/procesos`,
         authHeaders
       );
 
@@ -127,10 +182,16 @@ function App() {
     }
   };
 
+  /*
+  ========================================
+  BUSCAR DATOS PROCESO
+  ========================================
+  */
+
   const buscarDatosProceso = async () => {
     try {
       const respuesta = await axios.get(
-        `http://localhost:3001/datos-proceso/${radicado}`,
+        `${API}/datos-proceso/${radicado}`,
         authHeaders
       );
 
@@ -142,14 +203,20 @@ function App() {
       setDemandado(respuesta.data.demandado);
       setJuzgado(respuesta.data.juzgado);
     } catch (error) {
-      alert("No se pudieron cargar los datos");
+      alert("No se pudieron cargar los datos del proceso");
     }
   };
+
+  /*
+  ========================================
+  GUARDAR PROCESO
+  ========================================
+  */
 
   const guardarProceso = async () => {
     try {
       await axios.post(
-        "http://localhost:3001/procesos",
+        `${API}/procesos`,
         {
           radicado,
           proceso,
@@ -160,7 +227,7 @@ function App() {
         authHeaders
       );
 
-      alert("Proceso guardado");
+      alert("Proceso guardado correctamente");
 
       obtenerProcesos();
 
@@ -174,6 +241,12 @@ function App() {
     }
   };
 
+  /*
+  ========================================
+  VER ACTUACIONES
+  ========================================
+  */
+
   const verActuaciones = async (proceso) => {
     try {
       if (procesoSeleccionado === proceso.id) {
@@ -183,7 +256,7 @@ function App() {
       }
 
       const respuesta = await axios.get(
-        `http://localhost:3001/procesos/${proceso.id}/actuaciones`,
+        `${API}/procesos/${proceso.id}/actuaciones`,
         authHeaders
       );
 
@@ -194,14 +267,20 @@ function App() {
     }
   };
 
+  /*
+  ========================================
+  ACTUALIZAR PROCESO
+  ========================================
+  */
+
   const actualizarProceso = async (proceso) => {
     try {
       await axios.get(
-        `http://localhost:3001/consultar/${proceso.radicado}`,
+        `${API}/consultar/${proceso.radicado}`,
         authHeaders
       );
 
-      alert("Proceso actualizado");
+      alert("Proceso actualizado correctamente");
     } catch (error) {
       alert("Error actualizando proceso");
     }
@@ -212,6 +291,12 @@ function App() {
       obtenerProcesos();
     }
   }, [token]);
+
+  /*
+  ========================================
+  RESET PASSWORD VIEW
+  ========================================
+  */
 
   if (esResetPassword) {
     return (
@@ -236,7 +321,10 @@ function App() {
           </div>
 
           <div className="auth-actions">
-            <button className="btn btn-primary" onClick={actualizarPassword}>
+            <button
+              className="btn btn-primary"
+              onClick={actualizarPassword}
+            >
               Guardar nueva contraseña
             </button>
           </div>
@@ -244,6 +332,12 @@ function App() {
       </main>
     );
   }
+
+  /*
+  ========================================
+  LOGIN VIEW
+  ========================================
+  */
 
   if (!token) {
     return (
@@ -275,11 +369,17 @@ function App() {
               </div>
 
               <div className="auth-actions">
-                <button className="btn btn-outline" onClick={registrarse}>
+                <button
+                  className="btn btn-outline"
+                  onClick={registrarse}
+                >
                   Registrarse
                 </button>
 
-                <button className="btn btn-primary" onClick={iniciarSesion}>
+                <button
+                  className="btn btn-primary"
+                  onClick={iniciarSesion}
+                >
                   Iniciar sesión
                 </button>
               </div>
@@ -294,20 +394,25 @@ function App() {
           ) : (
             <>
               <p className="muted">
-                Escribe tu correo y te enviaremos un enlace para crear una nueva
-                contraseña.
+                Ingresa tu correo y te enviaremos un enlace para
+                recuperar tu contraseña.
               </p>
 
               <div className="auth-grid">
                 <input
                   placeholder="Correo registrado"
                   value={emailRecuperacion}
-                  onChange={(e) => setEmailRecuperacion(e.target.value)}
+                  onChange={(e) =>
+                    setEmailRecuperacion(e.target.value)
+                  }
                 />
               </div>
 
               <div className="auth-actions">
-                <button className="btn btn-primary" onClick={solicitarRecuperacion}>
+                <button
+                  className="btn btn-primary"
+                  onClick={solicitarRecuperacion}
+                >
                   Enviar enlace
                 </button>
 
@@ -325,6 +430,12 @@ function App() {
     );
   }
 
+  /*
+  ========================================
+  PANEL PRINCIPAL
+  ========================================
+  */
+
   return (
     <main className="page">
       <div className="container">
@@ -336,7 +447,10 @@ function App() {
             </p>
           </div>
 
-          <button className="btn btn-primary" onClick={cerrarSesion}>
+          <button
+            className="btn btn-primary"
+            onClick={cerrarSesion}
+          >
             Cerrar sesión
           </button>
         </header>
@@ -351,7 +465,10 @@ function App() {
               onChange={(e) => setRadicado(e.target.value)}
             />
 
-            <button className="btn btn-primary" onClick={buscarDatosProceso}>
+            <button
+              className="btn btn-primary"
+              onClick={buscarDatosProceso}
+            >
               Buscar datos
             </button>
 
@@ -381,7 +498,10 @@ function App() {
           </div>
 
           <div className="save-row">
-            <button className="btn btn-secondary" onClick={guardarProceso}>
+            <button
+              className="btn btn-secondary"
+              onClick={guardarProceso}
+            >
               Guardar proceso
             </button>
           </div>
@@ -391,7 +511,10 @@ function App() {
           <div className="card-header">
             <h2>Mis procesos</h2>
 
-            <button className="btn btn-outline" onClick={obtenerProcesos}>
+            <button
+              className="btn btn-outline"
+              onClick={obtenerProcesos}
+            >
               Actualizar lista
             </button>
           </div>
@@ -441,7 +564,9 @@ function App() {
             </table>
 
             {procesos.length === 0 && (
-              <div className="empty">No tienes procesos guardados</div>
+              <div className="empty">
+                No tienes procesos guardados
+              </div>
             )}
           </div>
         </section>
@@ -473,7 +598,9 @@ function App() {
 
                         <br />
 
-                        <span className="muted">{act.anotacion}</span>
+                        <span className="muted">
+                          {act.anotacion}
+                        </span>
                       </td>
                     </tr>
                   ))}
