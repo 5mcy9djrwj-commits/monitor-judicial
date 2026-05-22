@@ -145,9 +145,20 @@ export async function consultarProceso(radicado) {
 
 export async function consultarDatosProceso(radicado) {
   const browser = await chromium.launch({
-    headless: false,
-    slowMo: 700,
-  });
+
+  headless: true,
+
+  args: [
+
+    "--no-sandbox",
+
+    "--disable-setuid-sandbox",
+
+    "--disable-dev-shm-usage",
+
+  ],
+
+});
 
   const page = await browser.newPage();
 
