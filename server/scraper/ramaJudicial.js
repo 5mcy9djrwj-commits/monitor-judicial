@@ -3,69 +3,108 @@ import { chromium } from "playwright";
 const URL =
   "https://consultaprocesos.ramajudicial.gov.co/Procesos/NumeroRadicacion";
 
+const launchOptions = {
+  headless: true,
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-web-security",
+    "--disable-features=IsolateOrigins,site-per-process",
+  ],
+};
+
 export async function consultarDatosProceso(radicado) {
-  const browser = await chromium.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-software-rasterizer",
-    ],
-  });
+  const browser = await chromium.launch(launchOptions);
 
   try {
     const page = await browser.newPage();
 
-    console.log("Consultando proceso:", radicado);
-
     await page.goto(URL, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "networkidle",
       timeout: 120000,
     });
 
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(3000);
 
-    // Input radicado
-    await page.fill('input[type="text"]', radicado);
-
+    await page.locator("input").first().fill(radicado);
     await page.waitForTimeout(1000);
 
-    // Botón buscar
-    await page.click('button[type="submit"]');
-
+    await page.getByRole("button", { name: /consultar|buscar/i }).click();
     await page.waitForTimeout(8000);
 
-    // Verificar resultados
-    const existeProceso = await page.locator("table").count();
+    const textoPagina = await page.locator("body").innerText();
 
-    if (!existeProceso) {
-      throw new Error("No se encontraron resultados");
+    if (
+      textoPagina.toLowerCase().includes("no se encontraron") ||
+      textoPagina.toLowerCase().includes("sin resultados")
+    ) {
+      throw new Error("Proceso no encontrado");
     }
 
-    // Extraer datos básicos
-    const proceso = await page.locator("table tbody tr").first();
+    const filas = await page.locator("table tbody tr").all();
 
-    const texto = await proceso.innerText();
+    if (filas.length === 0) {
+      throw new Error("No se encontraron datos del proceso");
+    }
 
-    console.log("Resultado encontrado");
+    const primeraFila = filas[0];
+    const celdas = await primeraFila.locator("td").allInnerTexts();
 
-    return {
-      exito: true,
-      datos: {
-        radicado,
-        informacion: texto,
-      },
-    };
-  } catch (error) {
-    console.error("ERROR SCRAPER RAMA JUDICIAL:");
-    console.error(error);
+    const textoCompleto = celdas.join(" | ");
 
     return {
-      exito: false,
-      error: error.message,
+      radicado,
+      proceso: celdas[1] || "Proceso judicial",
+      demandante: celdas[2] || "No identificado",
+      demandado: celdas[3] || "No identificado",
+      juzgado: celdas[4] || textoCompleto || "No identificado",
     };
+  } finally {
+    await browser.close();
+  }
+}
+
+export async function consultarProceso(radicado) {
+  const browser = await chromium.launch(launchOptions);
+
+  try {
+    const page = await browser.newPage();
+
+    await page.goto(URL, {
+      waitUntil: "networkidle",
+      timeout: 120000,
+    });
+
+    await page.waitForTimeout(3000);
+
+    await page.locator("input").first().fill(radicado);
+    await page.waitForTimeout(1000);
+
+    await page.getByRole("button", { name: /consultar|buscar/i }).click();
+    await page.waitForTimeout(8000);
+
+    const filas = await page.locator("table tbody tr").all();
+
+    if (filas.length === 0) {
+      throw new Error("No se encontraron actuaciones");
+    }
+
+    const actuaciones = [];
+
+    for (const fila of filas) {
+      const celdas = await fila.locator("td").allInnerTexts();
+
+      actuaciones.push({
+        fecha: celdas[0] || new Date().toISOString().slice(0, 10),
+        actuacion: celdas[1] || celdas.join(" "),
+        anotacion: celdas.slice(2).join(" | ") || "",
+        categoria: "Actuación judicial",
+      });
+    }
+
+    return actuaciones;
   } finally {
     await browser.close();
   }
