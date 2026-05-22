@@ -19,12 +19,27 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+/*
+========================================
+CORS PRODUCCIÓN
+========================================
+*/
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://monitor-judicial-two.vercel.app",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 /*
 ========================================
-INICIAR JOB AUTOMATICO
+JOB AUTOMÁTICO
 ========================================
 */
 
@@ -49,9 +64,7 @@ function autenticarUsuario(req, res, next) {
 
   try {
     const usuario = jwt.verify(token, process.env.JWT_SECRET);
-
     req.usuario = usuario;
-
     next();
   } catch (error) {
     return res.status(401).json({
@@ -127,7 +140,11 @@ app.post("/registro", async (req, res) => {
         password
       )
       VALUES (?, ?, ?)
-    `).run(nombre.trim(), email.trim().toLowerCase(), passwordHash);
+    `).run(
+      nombre.trim(),
+      email.trim().toLowerCase(),
+      passwordHash
+    );
 
     res.json({
       mensaje: "Usuario registrado correctamente",
@@ -171,7 +188,10 @@ app.post("/login", async (req, res) => {
       });
     }
 
-    const passwordValida = await bcrypt.compare(password, usuario.password);
+    const passwordValida = await bcrypt.compare(
+      password,
+      usuario.password
+    );
 
     if (!passwordValida) {
       return res.status(401).json({
@@ -229,13 +249,16 @@ app.post("/recuperar-password", async (req, res) => {
 
     if (!usuario) {
       return res.json({
-        mensaje: "Si el correo existe, se enviará un enlace de recuperación",
+        mensaje:
+          "Si el correo existe, se enviará un enlace de recuperación",
       });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
 
-    const expira = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const expira = new Date(
+      Date.now() + 60 * 60 * 1000
+    ).toISOString();
 
     db.prepare(`
       UPDATE usuarios
@@ -245,7 +268,7 @@ app.post("/recuperar-password", async (req, res) => {
       WHERE id = ?
     `).run(token, expira, usuario.id);
 
-    const enlace = `http://localhost:5173/reset-password/${token}`;
+    const enlace = `https://monitor-judicial-two.vercel.app/reset-password/${token}`;
 
     await enviarCorreo(
       usuario.email,
@@ -268,7 +291,8 @@ Monitor Judicial
     );
 
     res.json({
-      mensaje: "Si el correo existe, se enviará un enlace de recuperación",
+      mensaje:
+        "Si el correo existe, se enviará un enlace de recuperación",
     });
   } catch (error) {
     console.error(error);
@@ -365,7 +389,13 @@ GUARDAR PROCESO
 
 app.post("/procesos", autenticarUsuario, async (req, res) => {
   try {
-    const { radicado, proceso, demandante, demandado, juzgado } = req.body;
+    const {
+      radicado,
+      proceso,
+      demandante,
+      demandado,
+      juzgado,
+    } = req.body;
 
     const sentencia = db.prepare(`
       INSERT OR IGNORE INTO procesos (
@@ -464,6 +494,20 @@ VER ACTUACIONES
 app.get("/procesos/:id/actuaciones", autenticarUsuario, (req, res) => {
   try {
     const { id } = req.params;
+
+    const proceso = db
+      .prepare(`
+        SELECT *
+        FROM procesos
+        WHERE id = ? AND usuario_id = ?
+      `)
+      .get(id, req.usuario.id);
+
+    if (!proceso) {
+      return res.status(404).json({
+        error: "Proceso no encontrado",
+      });
+    }
 
     const actuaciones = db
       .prepare(`
