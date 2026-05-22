@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 
 export async function consultarProceso(radicado) {
   const browser = await chromium.launch({
-    headless: false,
+    headless: true,
     slowMo: 700,
   });
 
@@ -144,20 +144,14 @@ export async function consultarProceso(radicado) {
 }
 
 export async function consultarDatosProceso(radicado) {
-  const browser = await chromium.launch({
-
+const browser = await chromium.launch({
   headless: true,
-
   args: [
-
     "--no-sandbox",
-
     "--disable-setuid-sandbox",
-
     "--disable-dev-shm-usage",
-
-  ],
-
+    "--disable-gpu"
+  ]
 });
 
   const page = await browser.newPage();
